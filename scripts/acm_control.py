@@ -1,4 +1,4 @@
- while (n_t < duration ):
+while (n_t < duration ):
 
     diff_t = datetime.now() - s_t
     n_t = diff_t.seconds + diff_t.microseconds/1E6               ##current process time
