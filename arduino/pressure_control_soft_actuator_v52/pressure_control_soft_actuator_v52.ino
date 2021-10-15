@@ -35,9 +35,9 @@ double Input_p;  // pressure value
 double Output_p; // motor speed
 
 //angle controller
-int Kp_a = 5;
-int Ki_a = 7;
-int Kd_a = 0.1;
+int Kp_a = 2.5;
+int Ki_a = 1.3;
+int Kd_a = 1.5;
 
 double Setpoint_a ;  // the desired value 
 double Input_a;  // pressure value
@@ -52,9 +52,9 @@ int value=0;
     
 
 
-   char command;
+   char command, commanda;
  int incominglen;
- float value_f;
+ float value_f, value_f_a;
 
 
 
@@ -161,6 +161,7 @@ void loop()
   float Setpoint_f;
   int p_limit;
   
+  
 
     //Reading pressure sensor
     pressure_sensorValue = (analogRead(PRESSURE_SENSOR)*SensorGain-SensorOffset); //Do maths for calibration
@@ -191,6 +192,8 @@ void loop()
        // Check for received hot keys on the com port
   if(Serial.available())
   {
+ commanda=command;
+ value_f_a=value_f;
     //parse_com_port();
   //double incomingValue = Serial.parseFloat();
  String incomingValue = Serial.readStringUntil('\n');
@@ -198,6 +201,7 @@ void loop()
  incominglen=incomingValue.length();
  String value =incomingValue.substring(1,incominglen);
  value_f=value.toFloat();
+
  
   //Serial.print("I received: ");
   //Serial.println(value_f);
@@ -210,11 +214,7 @@ void loop()
   }
 
   }
-
     //
-
- 
-
   if (command == 'a')
   {
   Setpoint_a = value_f;
@@ -234,6 +234,21 @@ void loop()
   Setpoint_p = 22;
   Setpoint_f=0;
   Output=value_f; 
+    }
+ else if (command == 'r')
+  {
+    Serial.print(sample[0]);    // Angle data
+    Serial.print(","); 
+    Serial.print(pressure_sensorValue);    // pressure data in kpa
+    Serial.print(",");
+    Serial.print(Setpoint_f);
+    Serial.print(",");
+    Serial.print(Output);
+    Serial.println(",");
+  command = commanda;
+  Setpoint_a = value_f;
+  Setpoint_f=Setpoint_a;
+  Output=Output_a; 
     }
 
 Input_a = angle;
@@ -260,36 +275,40 @@ angle_PID.Compute();  //
   Output=value_f; 
   p_limit=27;
     }
+
+   
     
 
  if (pressure_sensorValue <= p_limit and angle<=180)
     {
         if (Output >= 0)
         {
-          Output2 = map(Output, 0, 255, 35, 200); 
+          Output2 = map(Output, 0, 255, 50, 200); 
 
           motor_1_on(Output2);   //PWM Speed Control   value
-          valve_2_off();
+          valve_2_on();
         }
-        else
+        else 
         {
-          motor_1_off();   //PWM Speed Control   value
-          valve_2_on(); 
+          Output2 = map(-Output, 0, 255, 200, 50); 
+          motor_1_on(Output2);   //PWM Speed Control   value
+          valve_2_off(); 
          }
     }
-    else
+    else 
     {
-       motor_1_off();   //PWM Speed Control   value
-       valve_2_on();
+       motor_1_on(45);   //PWM Speed Control   value
+       valve_2_off();
     }
+
+
     Serial.print(sample[0]);    // Angle data
     Serial.print(","); 
-    Serial.print(pressure_sensorValue);    // pressure data in kpa
-    Serial.print(",");
     Serial.print(Setpoint_f);
     Serial.print(",");
     Serial.print(Output);
     Serial.println(",");
+    
     delay(10);
     
 }

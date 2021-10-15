@@ -36,7 +36,7 @@ double Output_p; // motor speed
 
 //angle controller
 int Kp_a = 5;
-int Ki_a = 7;
+int Ki_a = 10;
 int Kd_a = 0.1;
 
 double Setpoint_a ;  // the desired value 
@@ -210,11 +210,7 @@ void loop()
   }
 
   }
-
     //
-
- 
-
   if (command == 'a')
   {
   Setpoint_a = value_f;
@@ -260,28 +256,9 @@ angle_PID.Compute();  //
   Output=value_f; 
   p_limit=27;
     }
-    
 
- if (pressure_sensorValue <= p_limit and angle<=180)
-    {
-        if (Output >= 0)
-        {
-          Output2 = map(Output, 0, 255, 35, 200); 
-
-          motor_1_on(Output2);   //PWM Speed Control   value
-          valve_2_off();
-        }
-        else
-        {
-          motor_1_off();   //PWM Speed Control   value
-          valve_2_on(); 
-         }
-    }
-    else
-    {
-       motor_1_off();   //PWM Speed Control   value
-       valve_2_on();
-    }
+   else if (command == 'r')
+  {
     Serial.print(sample[0]);    // Angle data
     Serial.print(","); 
     Serial.print(pressure_sensorValue);    // pressure data in kpa
@@ -290,6 +267,31 @@ angle_PID.Compute();  //
     Serial.print(",");
     Serial.print(Output);
     Serial.println(",");
+    command = 'f';
+    }
+    
+
+ if (pressure_sensorValue <= p_limit and angle<=180)
+    {
+        if (Output >= 0)
+        {
+          Output2 = map(Output, 0, 255, 60, 200); 
+
+          motor_1_on(Output2);   //PWM Speed Control   value
+          valve_2_off();
+        }
+        else
+        {
+          motor_1_on(45);   //PWM Speed Control   value
+          valve_2_on(); 
+         }
+    }
+    else
+    {
+       motor_1_on(45);   //PWM Speed Control   value
+       valve_2_on();
+    }
+    
     delay(10);
     
 }
