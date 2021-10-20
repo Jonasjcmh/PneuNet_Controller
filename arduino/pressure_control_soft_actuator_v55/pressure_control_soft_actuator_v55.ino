@@ -283,19 +283,22 @@ angle_PID.Compute();  //
     {
         if (Output >= 0)
         {
-          Output2 = map(Output, 0, 255, 15, 200); 
+          Output2 = map(Output, 0, 255, 15, 250); 
           motor_1_on(Output2);   //PWM Speed Control   value
-          int error= Input_a - Setpoint_a; 
-          if (error<0 and Output2==200)
+          valve_2_on();
+
+          int errores = Input_a - Setpoint_a; 
+          if (errores<0 and Output2>=100)
           {
             valve_2_off(); 
-            delay(0.001);
+            delay(0.5);
             valve_2_on();
           }
           else
           {
             valve_2_on();
           }
+
           }
           
         else 
@@ -314,16 +317,16 @@ angle_PID.Compute();  //
     }
 
 
-    Serial.print(pressure_sensorValue);    // Angle data
-    Serial.print(","); 
-    Serial.print(p_limit);    // Angle data
-    Serial.print(","); 
-    Serial.print(sample[0]);    // Angle data
-    Serial.print(","); 
-    Serial.print(Setpoint_f);
-    Serial.print(",");
-    Serial.print(Output);
-    Serial.println(",");
+   // Serial.print(pressure_sensorValue);    // Angle data
+   // Serial.print(","); 
+    //Serial.print(p_limit);    // Angle data
+   // Serial.print(","); 
+   // Serial.print(sample[0]);    // Angle data
+  //  Serial.print(","); 
+   // Serial.print(Setpoint_f);
+   // Serial.print(",");
+   // Serial.print(Output);
+   // Serial.println(",");
     
     delay(10);
     
