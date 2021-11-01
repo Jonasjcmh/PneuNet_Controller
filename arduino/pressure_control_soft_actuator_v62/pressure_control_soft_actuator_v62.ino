@@ -370,12 +370,12 @@ angle_PID.Compute();  //
    // Serial.print(","); 
     //Serial.print(p_limit);    // Angle data
    // Serial.print(","); 
-   //Serial.print(sample[0]);    // Angle data
-   //Serial.print(","); 
-   // Serial.print(Setpoint_f);
-   // Serial.print(",");
-   //Serial.print(Output);
-   //Serial.println(",");
+   Serial.print(sample[0]);    // Angle data
+   Serial.print(","); 
+    Serial.print(Setpoint_f);
+    Serial.print(",");
+   Serial.print(Output);
+   Serial.println(",");
     
     delay(10);
     

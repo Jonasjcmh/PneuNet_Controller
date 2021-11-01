@@ -12,7 +12,7 @@
 #define RUBBER_SENSOR (A0)               //  Adafruit Rubber Cord Sensor analog input
 #define PRESSURE_SENSOR (A1)             //  MPX5100 Series Integrated Silicon Pressure Sensor analog input (0 to 100 kPa)
 
-#define PRESSURE_SENSOR (A1)             //  MPX5100 Series Integrated Silicon Pressure Sensor analog input (0 to 100 kPa)
+#define PRESSURE_SENSOR_2 (A2)             //  MPX5100 Series Integrated Silicon Pressure Sensor analog input (0 to 100 kPa)
 
 //Arduino PWM Speed Control：
 int E1 = 3;
@@ -35,7 +35,7 @@ double Input_p;  // pressure value
 double Output_p; // motor speed
 
 //angle controller
-int Kp_a = 5;
+int Kp_a = 10;
 int Ki_a = 1;
 int Kd_a = 0.8;
 
@@ -46,9 +46,14 @@ double Output_a; // motor speed
 
 int value=0;
     float pressure_sensorValue;
+    float pressure_sensorValue_2;
     float angle;
     int Output2;
     int Output;
+    int angle_o = 0;
+
+    float angle_no_filter, angle_n0;
+    float alphac=0.9;
     
 
 
@@ -103,6 +108,7 @@ void setup()
     pinMode(M3, OUTPUT);
     pinMode(M4, OUTPUT);
     pinMode(PRESSURE_SENSOR, INPUT);  // Defining sensor inputs for ADC (Analog digital converter)
+    pinMode(PRESSURE_SENSOR_2, INPUT);  // Defining sensor inputs for ADC (Analog digital converter)
     
     Serial.begin(115200);             // Starting Serial communication with computer baudrate 115200 bps
 
@@ -135,9 +141,20 @@ void setup()
   {
     Serial.print("One Axis ADS initialization failed with reason: ");
     Serial.println(ret_val);
+
+    delay(1000);
+    ads_init_t init;                                // One Axis ADS initialization structure
+  init.sps = ADS_100_HZ;                          // Set sample rate to 100 Hz (Interrupt mode)
+  init.ads_sample_callback = &ads_data_callback;  // Provide callback for new data
+  init.reset_pin = ADS_RESET_PIN;                 // Pin connected to ADS reset line
+  init.datardy_pin = ADS_INTERRUPT_PIN;           // Pin connected to ADS data ready interrupt
+  init.addr = 0;                                  // Update value if non default I2C address is assinged to sensor
+  int ret_val = ads_init(&init);                 // Initialize ADS hardware abstraction layer, and set the sample rate
+  
   }
   else
   {
+    
     Serial.println("One Axis ADS initialization succeeded...");
   }
   // Enable stretch measurements
@@ -165,7 +182,7 @@ void loop()
 
     //Reading pressure sensor
     pressure_sensorValue = (analogRead(PRESSURE_SENSOR)*SensorGain-SensorOffset); //Do maths for calibration
-
+    pressure_sensorValue_2 = (analogRead(PRESSURE_SENSOR_2)*SensorGain-SensorOffset); //Do maths for calibration
     //Reading bendsensor
 
      // Read data from the one axis ads sensor
@@ -184,7 +201,9 @@ void loop()
     }
   }
   
-    angle=sample[0];
+    angle_no_filter=sample[0];
+    angle_n0=angle;
+    angle= angle_n0+ alphac*(angle_no_filter-angle_n0);
 
           //PWM Speed Control
 
@@ -237,7 +256,7 @@ void loop()
     }
  else if (command == 'r')
   {
-    Serial.print(sample[0]);    // Angle data
+    Serial.print(Input_a);    // Angle data
     Serial.print(","); 
     Serial.print(pressure_sensorValue);    // pressure data in kpa
     Serial.print(",");
@@ -251,7 +270,15 @@ void loop()
   Output=Output_a; 
     }
 
-Input_a = angle;
+  else if (command == 'l')
+  {
+  Setpoint_a = value_f;
+  Setpoint_f=Setpoint_a;
+  Output=Output_a;
+  angle_o=sample[0]; 
+    }
+
+Input_a = angle-angle_o;
 Input_p = pressure_sensorValue;
 pressure_PID.Compute();  //
 angle_PID.Compute();  //
@@ -276,43 +303,69 @@ angle_PID.Compute();  //
   p_limit=27;
     }
 
-   
-    
 
- if (pressure_sensorValue <= p_limit and angle<=185)
+
+ if (pressure_sensorValue <= p_limit and pressure_sensorValue_2 <= p_limit and angle<=185 and angle >=-185)
     {
-        if (Output >= 0)
+        if (Output >= 0 and value_f >0)
         {
-          Output2 = map(Output, 0, 255, 15, 250); 
-          motor_1_on(Output2);   //PWM Speed Control   value
+          Output2 = map(Output, 0, 255, 15, 230); 
+          motor_2_on(Output2);   //PWM Speed Control   value
           valve_2_on();
 
-          int errores = Input_a - Setpoint_a; 
-          if (errores<0 and Output2>=100)
-          {
-            valve_2_off(); 
-            delay(0.5);
-            valve_2_on();
-          }
-          else
-          {
-            valve_2_on();
-          }
+          motor_1_off();   //PWM Speed Control   value
+          valve_1_off();
 
+
+          int errores = Input_a - Setpoint_a; 
+            if (errores<0 and Output2>=255)
+            {
+              valve_2_off(); 
+              delay(20);
+              valve_2_on();
+            }
+            else
+            {
+              valve_2_on();
+            }
           }
           
-        else 
+        else if (Output < 0 and value_f <0)
         {
-          //Output2 = map(-Output, 0, 255, 200, 15); 
-          //motor_1_on(Output2);   //PWM Speed Control   value
-          motor_1_off();   //PWM Speed Control   value
+
+          Output2 = map(Output, -255, 0, 230, 15); 
+          motor_1_on(Output2);   //PWM Speed Control   value
+          valve_1_on();
+          
+          motor_2_off();   //PWM Speed Control   value
           valve_2_off(); 
+
+          int errores = Input_a - Setpoint_a; 
+            if (errores>0 and Output2>=255)
+            {
+              valve_1_off(); 
+              delay(20);
+              valve_1_on();
+            }
+            else
+            {
+              valve_1_on();
+            }
+
+         }
+         else
+         {
+          motor_1_off();   //PWM Speed Control   value
+          valve_1_off();
+          motor_2_off();   //PWM Speed Control   value
+          valve_2_off();
          }
     }
     else 
     {
-       //motor_1_on(45);   //PWM Speed Control   value
        motor_1_off();   //PWM Speed Control   value
+       valve_1_off();
+       motor_2_off();   //PWM Speed Control   value
        valve_2_off();
     }
 
@@ -321,12 +374,12 @@ angle_PID.Compute();  //
    // Serial.print(","); 
     //Serial.print(p_limit);    // Angle data
    // Serial.print(","); 
-   Serial.print(sample[0]);    // Angle data
-  Serial.print(","); 
+   Serial.print(angle);    // Angle data
+   Serial.print(","); 
    Serial.print(Setpoint_f);
    Serial.print(",");
-   // Serial.print(Output);
-   // Serial.println(",");
+   Serial.print(Output2);
+   Serial.println(",");
     
     delay(10);
     

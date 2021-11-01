@@ -12,7 +12,7 @@
 #define RUBBER_SENSOR (A0)               //  Adafruit Rubber Cord Sensor analog input
 #define PRESSURE_SENSOR (A1)             //  MPX5100 Series Integrated Silicon Pressure Sensor analog input (0 to 100 kPa)
 
-#define PRESSURE_SENSOR (A1)             //  MPX5100 Series Integrated Silicon Pressure Sensor analog input (0 to 100 kPa)
+#define PRESSURE_SENSOR_2 (A2)             //  MPX5100 Series Integrated Silicon Pressure Sensor analog input (0 to 100 kPa)
 
 //Arduino PWM Speed Control：
 int E1 = 3;
@@ -26,8 +26,8 @@ const int M3 = 8; ///<Motor3 Direction
 const int M4 = 7; ///<Motor4 Direction
 
 //pressure controller
-int Kp_p = 3;
-int Ki_p = 10;
+int Kp_p = 10;
+int Ki_p = 4;
 int Kd_p = 0.1;
 
 double Setpoint_p ;  // the desired value 
@@ -35,9 +35,9 @@ double Input_p;  // pressure value
 double Output_p; // motor speed
 
 //angle controller
-int Kp_a = 5;
-int Ki_a = 1;
-int Kd_a = 0.8;
+int Kp_a = 10;  //5
+int Ki_a = 1;  //1
+int Kd_a = 0.09;  //0.5
 
 double Setpoint_a ;  // the desired value 
 double Input_a;  // pressure value
@@ -46,9 +46,14 @@ double Output_a; // motor speed
 
 int value=0;
     float pressure_sensorValue;
+    float pressure_sensorValue_2;
     float angle;
     int Output2;
     int Output;
+    int angle_o = 0;
+
+    float angle_no_filter, angle_n0;
+    float alphac=0.9;
     
 
 
@@ -103,6 +108,7 @@ void setup()
     pinMode(M3, OUTPUT);
     pinMode(M4, OUTPUT);
     pinMode(PRESSURE_SENSOR, INPUT);  // Defining sensor inputs for ADC (Analog digital converter)
+    pinMode(PRESSURE_SENSOR_2, INPUT);  // Defining sensor inputs for ADC (Analog digital converter)
     
     Serial.begin(115200);             // Starting Serial communication with computer baudrate 115200 bps
 
@@ -165,7 +171,7 @@ void loop()
 
     //Reading pressure sensor
     pressure_sensorValue = (analogRead(PRESSURE_SENSOR)*SensorGain-SensorOffset); //Do maths for calibration
-
+    pressure_sensorValue_2 = (analogRead(PRESSURE_SENSOR_2)*SensorGain-SensorOffset); //Do maths for calibration
     //Reading bendsensor
 
      // Read data from the one axis ads sensor
@@ -184,7 +190,9 @@ void loop()
     }
   }
   
-    angle=sample[0];
+    angle_no_filter=sample[0];
+    angle_n0=angle;
+    angle= angle_n0+ alphac*(angle_no_filter-angle_n0);
 
           //PWM Speed Control
 
@@ -237,7 +245,7 @@ void loop()
     }
  else if (command == 'r')
   {
-    Serial.print(sample[0]);    // Angle data
+    Serial.print(Input_a);    // Angle data
     Serial.print(","); 
     Serial.print(pressure_sensorValue);    // pressure data in kpa
     Serial.print(",");
@@ -251,7 +259,15 @@ void loop()
   Output=Output_a; 
     }
 
-Input_a = angle;
+  else if (command == 'l')
+  {
+  Setpoint_a = value_f;
+  Setpoint_f=Setpoint_a;
+  Output=Output_a;
+  angle_o=sample[0]; 
+    }
+
+Input_a = angle-angle_o;
 Input_p = pressure_sensorValue;
 pressure_PID.Compute();  //
 angle_PID.Compute();  //
@@ -276,6 +292,7 @@ angle_PID.Compute();  //
   p_limit=27;
     }
 
+
    
     
 
@@ -283,50 +300,58 @@ angle_PID.Compute();  //
     {
         if (Output >= 0)
         {
-          Output2 = map(Output, 0, 255, 15, 250); 
-          motor_1_on(Output2);   //PWM Speed Control   value
+          motor_1_off();
+          Output2 = map(Output, 0, 255, 20, 220); 
+          motor_2_on(Output2);   //PWM Speed Control   value
           valve_2_on();
+          valve_1_off();
+
 
           int errores = Input_a - Setpoint_a; 
-          if (errores<0 and Output2>=100)
+          if (errores>30)
           {
-            valve_2_off(); 
-            delay(0.5);
-            valve_2_on();
+            //valve_2_off(); 
+            //motor_1_on(255-Output2);
+
           }
           else
           {
-            valve_2_on();
+            //valve_2_off();
+            //motor_1_off();
           }
 
+          
           }
           
         else 
         {
-          //Output2 = map(-Output, 0, 255, 200, 15); 
-          //motor_1_on(Output2);   //PWM Speed Control   value
-          motor_1_off();   //PWM Speed Control   value
-          valve_2_off(); 
+          Output2 = map(Output, -255, 0, 150, 15);
+          motor_2_on(150-Output2);   //PWM Speed Control   value
+          valve_2_off();
+          motor_1_off(); 
+          valve_1_on();
+          motor_2_off(); 
          }
     }
     else 
     {
-       //motor_1_on(45);   //PWM Speed Control   value
-       motor_1_off();   //PWM Speed Control   value
+       motor_2_off();   //PWM Speed Control   value
        valve_2_off();
     }
 
+    
 
-   // Serial.print(pressure_sensorValue);    // Angle data
-   // Serial.print(","); 
+
+   //Serial.print(pressure_sensorValue);    // Angle data
+   //Serial.print(","); 
     //Serial.print(p_limit);    // Angle data
    // Serial.print(","); 
-   Serial.print(sample[0]);    // Angle data
-  Serial.print(","); 
-   Serial.print(Setpoint_f);
-   Serial.print(",");
-   // Serial.print(Output);
-   // Serial.println(",");
+   //Serial.print(angle);    // Angle data
+   //Serial.print(","); 
+   //Serial.print(Setpoint_f);
+   //Serial.print(",");
+   //Serial.print(Output2);
+   //Serial.println(",");
     
     delay(10);
     
